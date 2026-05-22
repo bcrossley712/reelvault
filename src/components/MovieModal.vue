@@ -11,49 +11,66 @@
         @keydown.esc="$emit('close')"
       >
         <div class="modal">
-          <div class="modal-hero">
-            <div class="modal-poster">
-              <img
-                v-if="movie.image && !imgError"
-                :src="movie.image"
-                :alt="movie.title"
-                @error="imgError = true"
-              />
-              <div v-else class="poster-fallback">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
-                  <rect x="2" y="2" width="20" height="20" rx="2"/>
-                  <path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4"/>
-                </svg>
-              </div>
+
+          <!-- Close button -->
+          <button class="modal-close" aria-label="Close" @click="$emit('close')">✕</button>
+
+          <!-- Poster strip -->
+          <div class="modal-poster-wrap">
+            <img
+              v-if="movie.image && !imgError"
+              :src="movie.image"
+              :alt="movie.title"
+              class="modal-poster-img"
+              @error="imgError = true"
+            />
+            <div v-else class="modal-poster-fallback">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+                <rect x="2" y="2" width="20" height="20" rx="2"/>
+                <path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4"/>
+              </svg>
             </div>
-
-            <div class="modal-info">
-              <div class="modal-badges">
-                <span v-if="movie.mpa" class="badge-pill mpa-pill" :class="`badge-${movie.mpa}`">
-                  {{ displayMPA(movie.mpa) }}
-                </span>
-                <span v-if="movie.year" class="badge-pill year-pill">{{ movie.year }}</span>
-                <span v-for="genre in movie.genres" :key="genre" class="badge-pill genre-pill">{{ genre }}</span>
-              </div>
-
-              <h2 class="modal-title">{{ movie.title }}</h2>
-
-              <p v-if="movie.starring" class="modal-starring">
-                <span class="starring-label">Starring</span>
-                {{ movie.starring }}
-              </p>
-            </div>
-
-            <button class="modal-close" aria-label="Close" @click="$emit('close')">✕</button>
           </div>
 
-          <div class="modal-body">
-            <p v-if="movie.synopsis" class="modal-synopsis">{{ movie.synopsis }}</p>
-            <p v-else class="modal-synopsis muted">No synopsis on file.</p>
+          <!-- Info block -->
+          <div class="modal-info">
+            <div class="modal-badges">
+              <span v-if="movie.mpa" class="badge-pill" :class="`badge-${movie.mpa}`">
+                {{ displayMPA(movie.mpa) }}
+              </span>
+              <span v-if="movie.year" class="badge-pill year-pill">{{ movie.year }}</span>
+              <span v-for="genre in movie.genres" :key="genre" class="badge-pill genre-pill">{{ genre }}</span>
+            </div>
+            <h2 class="modal-title">{{ movie.title }}</h2>
+            <p v-if="movie.starring" class="modal-starring">
+              <span class="starring-label">Starring</span>{{ movie.starring }}
+            </p>
+          </div>
 
+          <div class="modal-divider" />
+
+          <!-- Body: synopsis + meta -->
+          <div class="modal-body">
+
+            <!-- Synopsis with Read more -->
+            <div class="synopsis-wrap">
+              <p
+                class="modal-synopsis"
+                :class="{ truncated: !synExpanded }"
+              >{{ movie.synopsis || 'No synopsis on file.' }}</p>
+              <button
+                v-if="movie.synopsis && isTruncatable"
+                class="read-more-btn"
+                @click="synExpanded = !synExpanded"
+              >
+                {{ synExpanded ? 'Show less' : 'Read more' }}
+              </button>
+            </div>
+
+            <!-- Detail grid -->
             <dl class="detail-grid">
               <template v-if="movie.location">
-                <dt>Collection Location</dt>
+                <dt>Location</dt>
                 <dd class="location-value">📦 {{ movie.location }}</dd>
               </template>
               <template v-if="movie.year">
@@ -73,6 +90,7 @@
                 <dd class="mpa-content-value">{{ movie.mpaContent }}</dd>
               </template>
             </dl>
+
           </div>
         </div>
       </div>
@@ -81,32 +99,42 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   movie: { type: Object, default: null },
 })
 defineEmits(['close'])
 
-const imgError = ref(false)
+const imgError    = ref(false)
+const synExpanded = ref(false)
 
-watch(() => props.movie, () => { imgError.value = false })
+// Rough check: synopsis longer than ~120 chars is truncatable
+const isTruncatable = computed(() =>
+  props.movie?.synopsis && props.movie.synopsis.length > 120
+)
+
+watch(() => props.movie, () => {
+  imgError.value    = false
+  synExpanded.value = false
+})
 
 function displayMPA(code) {
   if (!code) return ''
   return code
-    .replace('PG13', 'PG-13')
-    .replace('NC17', 'NC-17')
-    .replace('TVY7', 'TV-Y7')
-    .replace('TVY', 'TV-Y')
-    .replace('TVG', 'TV-G')
-    .replace('TVPG', 'TV-PG')
-    .replace('TV14', 'TV-14')
-    .replace('TVMA', 'TV-MA')
+    .replace('PG13',  'PG-13')
+    .replace('NC17',  'NC-17')
+    .replace('TVY7',  'TV-Y7')
+    .replace('TVY',   'TV-Y')
+    .replace('TVG',   'TV-G')
+    .replace('TVPG',  'TV-PG')
+    .replace('TV14',  'TV-14')
+    .replace('TVMA',  'TV-MA')
 }
 </script>
 
 <style scoped>
+/* ── Overlay ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -118,38 +146,59 @@ function displayMPA(code) {
   padding: 1rem;
 }
 
+/* ── Sheet ── */
 .modal {
+  position: relative;
   background: var(--bg2);
   border: 1px solid var(--border-em);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 900px;
+  max-width: 860px;
   max-height: 92vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  -webkit-overflow-scrolling: touch;
 }
 
-.modal-hero {
+/* ── Close ── */
+.modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid var(--border-em);
+  color: var(--text);
+  cursor: pointer;
   display: flex;
-  min-height: 320px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  overflow: hidden;
-  position: relative;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  transition: background 0.15s;
 }
+.modal-close:hover { background: rgba(0, 0, 0, 0.9); }
 
-.modal-poster {
-  width: 220px;
+/* ── Poster strip ── */
+.modal-poster-wrap {
+  width: 100%;
+  height: 260px;
   flex-shrink: 0;
   background: var(--bg3);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  overflow: hidden;
 }
-.modal-poster img {
+.modal-poster-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 20%;
   display: block;
 }
-.poster-fallback {
+.modal-poster-fallback {
   width: 100%;
   height: 100%;
   display: flex;
@@ -157,43 +206,38 @@ function displayMPA(code) {
   justify-content: center;
   color: var(--muted2);
 }
-.poster-fallback svg { width: 56px; height: 56px; opacity: 0.3; }
+.modal-poster-fallback svg { width: 56px; height: 56px; opacity: 0.25; }
 
+/* ── Info block ── */
 .modal-info {
-  flex: 1;
-  padding: 2rem 2rem 1.75rem;
-  background: var(--bg3);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  padding: 1.25rem 1.5rem 1rem;
 }
-
 .modal-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.7rem;
 }
 .badge-pill {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 9px;
   border-radius: 4px;
   letter-spacing: 0.04em;
 }
 .year-pill  { background: rgba(255,255,255,0.07); color: var(--muted); }
-.genre-pill { background: rgba(232,184,75,0.12); color: var(--accent); }
+.genre-pill { background: rgba(232,184,75,0.12);  color: var(--accent); }
 
 .modal-title {
   font-family: var(--font-display);
-  font-size: 2.6rem;
+  font-size: 2rem;
   letter-spacing: 1.5px;
   color: var(--text);
   line-height: 1.05;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.5rem;
 }
 .modal-starring {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -203,77 +247,91 @@ function displayMPA(code) {
   margin-right: 0.3rem;
 }
 
-.modal-close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.65);
-  border: 1px solid var(--border-em);
-  color: var(--text);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  line-height: 1;
-  transition: background 0.15s;
+.modal-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0 1.5rem;
 }
-.modal-close:hover { background: rgba(0, 0, 0, 0.9); }
 
+/* ── Body ── */
 .modal-body {
-  padding: 1.75rem 2rem 2.25rem;
+  padding: 1.1rem 1.5rem 1.75rem;
 }
+
+/* Synopsis */
+.synopsis-wrap { margin-bottom: 1.25rem; }
 
 .modal-synopsis {
-  font-size: 0.925rem;
+  font-size: 0.875rem;
   color: #c0bfb8;
   line-height: 1.85;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.35rem;
 }
-.modal-synopsis.muted { color: var(--muted); font-style: italic; }
+.modal-synopsis.truncated {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
+.read-more-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-body);
+  transition: opacity 0.15s;
+}
+.read-more-btn:hover { opacity: 0.75; }
+
+/* Detail grid */
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.85rem 2rem;
+  gap: 0.8rem 2rem;
 }
 .detail-grid dt {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.15rem;
 }
 .detail-grid dd {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--text);
   font-weight: 500;
 }
-.location-value { color: var(--accent); }
-.mpa-content-value { color: var(--muted); font-size: 0.82rem; font-weight: 400; font-style: italic; }
+.location-value   { color: var(--accent); }
+.mpa-content-value { color: var(--muted); font-size: 0.8rem; font-weight: 400; font-style: italic; }
 
-.modal-enter-active { animation: fadeUp 0.22s ease; }
-.modal-leave-active { animation: fadeUp 0.15s ease reverse; }
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(24px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+/* ── Animation ── */
+.modal-enter-active { animation: slideUp 0.22s ease; }
+.modal-leave-active { animation: slideUp 0.15s ease reverse; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
-@media (max-width: 700px) {
-  .modal-overlay { padding: 0; align-items: flex-end; }
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
   .modal {
     max-width: 100%;
-    max-height: 94vh;
+    max-height: 92vh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
-  .modal-hero { flex-direction: column; min-height: auto; }
-  .modal-poster { width: 100%; height: 220px; }
-  .modal-info { padding: 1.25rem 1.25rem 1rem; }
-  .modal-title { font-size: 1.8rem; }
-  .modal-body { padding: 1.25rem 1.25rem 2rem; }
-  .detail-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+  .modal-poster-wrap { height: 200px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .modal-title       { font-size: 1.5rem; }
+  .modal-info        { padding: 1rem 1.1rem 0.75rem; }
+  .modal-divider     { margin: 0 1.1rem; }
+  .modal-body        { padding: 1rem 1.1rem 1.5rem; }
+  .detail-grid       { grid-template-columns: 1fr; gap: 0.7rem; }
 }
 </style>

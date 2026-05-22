@@ -119,7 +119,7 @@ export function useMovies() {
     loading.value = true
     error.value   = null
     try {
-      const response = await fetch('/movies.xlsx')
+      const response = await fetch('movies.xlsx')
       if (!response.ok) throw new Error(`Could not fetch movies.xlsx (${response.status})`)
       const buffer = await response.arrayBuffer()
       const wb     = XLSX.read(buffer, { type: 'array' })

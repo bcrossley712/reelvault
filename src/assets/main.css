@@ -1,0 +1,57 @@
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Design tokens ── */
+:root {
+  --bg:          #0a0a0f;
+  --bg2:         #111118;
+  --bg3:         #1a1a24;
+  --card:        #16161f;
+  --card-hover:  #1e1e2a;
+  --border:      rgba(255, 255, 255, 0.07);
+  --border-em:   rgba(255, 255, 255, 0.15);
+  --accent:      #e8b84b;
+  --accent2:     #c9973a;
+  --text:        #f0eee8;
+  --muted:       #7a7a8c;
+  --muted2:      #4a4a5a;
+  --radius:      10px;
+  --radius-lg:   16px;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--muted2); border-radius: 3px; }
+
+/* ── MPA / TV badge colours ── */
+.badge-G    { background: #1a4d33; color: #6ee89e; }
+.badge-PG   { background: #0f3563; color: #78b8ff; }
+.badge-PG13 { background: #5c3c00; color: #ffc850; }
+.badge-R    { background: #5c1a1a; color: #ff9090; }
+.badge-NC17 { background: #3d1050; color: #d890e8; }
+.badge-NR   { background: #2a2a38; color: #9090bb; }
+/* TV ratings */
+.badge-TVY  { background: #1a4d33; color: #6ee89e; }
+.badge-TVG  { background: #1a4d33; color: #6ee89e; }
+.badge-TVY7 { background: #0f3563; color: #78b8ff; }
+.badge-TVPG { background: #0f3563; color: #78b8ff; }
+.badge-TV14 { background: #5c3c00; color: #ffc850; }
+.badge-TVMA { background: #5c1a1a; color: #ff9090; }

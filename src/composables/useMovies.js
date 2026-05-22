@@ -167,7 +167,7 @@ export function useMovies() {
     if (search.value) {
       const q = search.value.toLowerCase()
       list = list.filter(m =>
-        [m.title, m.genre, m.starring, m.synopsis].join(' ').toLowerCase().includes(q)
+        [m.title, m.starring].join(' ').toLowerCase().includes(q)
       )
     }
 

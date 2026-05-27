@@ -73,18 +73,6 @@
                 <dt>Location</dt>
                 <dd class="location-value">📦 {{ movie.location }}</dd>
               </template>
-              <template v-if="movie.year">
-                <dt>Year</dt>
-                <dd>{{ movie.year }}</dd>
-              </template>
-              <template v-if="movie.genre">
-                <dt>Genre</dt>
-                <dd>{{ movie.genre }}</dd>
-              </template>
-              <template v-if="movie.mpa">
-                <dt>MPA Rating</dt>
-                <dd>{{ displayMPA(movie.mpa) }}</dd>
-              </template>
               <template v-if="movie.mpaContent">
                 <dt>MPA Content</dt>
                 <dd class="mpa-content-value">{{ movie.mpaContent }}</dd>

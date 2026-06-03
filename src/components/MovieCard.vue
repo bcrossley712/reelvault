@@ -23,7 +23,11 @@
         <span>{{ movie.title }}</span>
       </div>
 
-      <div v-if="movie.mpa" class="mpa-badge" :class="`badge-${movie.mpa}`">
+      <!-- TV badge shows season count; movies show MPA rating -->
+      <div v-if="movie.isTV" class="badge-tv">
+        📺 {{ movie.seasons.length }} {{ movie.groupType }}
+      </div>
+      <div v-else-if="movie.mpa" class="mpa-badge" :class="`badge-${movie.mpa}`">
         {{ displayMPA(movie.mpa) }}
       </div>
 
@@ -37,8 +41,8 @@
       <p class="card-title">{{ movie.title }}</p>
       <p class="card-meta">
         <span v-if="movie.year" class="card-year">{{ movie.year }}</span>
-        <span v-if="movie.year && movie.genre" class="card-dot" aria-hidden="true">·</span>
-        <span v-if="movie.genre" class="card-genre">{{ movie.genres[0] }}</span>
+        <span v-if="movie.year && movie.genres.length" class="card-dot" aria-hidden="true">·</span>
+        <span v-if="movie.genres.length" class="card-genre">{{ movie.genres[0] }}</span>
       </p>
     </div>
   </article>
@@ -60,8 +64,8 @@ function displayMPA(code) {
     .replace('PG13', 'PG-13')
     .replace('NC17', 'NC-17')
     .replace('TVY7', 'TV-Y7')
-    .replace('TVY', 'TV-Y')
-    .replace('TVG', 'TV-G')
+    .replace('TVY',  'TV-Y')
+    .replace('TVG',  'TV-G')
     .replace('TVPG', 'TV-PG')
     .replace('TV14', 'TV-14')
     .replace('TVMA', 'TV-MA')
@@ -114,6 +118,23 @@ function displayMPA(code) {
 .poster-fallback svg  { width: 36px; height: 36px; opacity: 0.35; flex-shrink: 0; }
 .poster-fallback span { font-size: 0.68rem; text-align: center; color: var(--muted); line-height: 1.3; }
 
+/* TV season count badge */
+.badge-tv {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  background: rgba(232, 184, 75, 0.2);
+  color: var(--accent);
+  border: 1px solid rgba(232, 184, 75, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+/* MPA rating badge */
 .mpa-badge {
   position: absolute;
   top: 7px;
@@ -125,7 +146,7 @@ function displayMPA(code) {
   letter-spacing: 0.04em;
 }
 
-/* Hover overlay showing genres */
+/* Hover overlay */
 .card-overlay {
   position: absolute;
   inset: 0;
@@ -152,9 +173,7 @@ function displayMPA(code) {
 }
 
 /* Info strip */
-.card-info {
-  padding: 0.5rem 0.6rem 0.65rem;
-}
+.card-info { padding: 0.5rem 0.6rem 0.65rem; }
 .card-title {
   font-size: 0.8rem;
   font-weight: 600;
@@ -164,11 +183,7 @@ function displayMPA(code) {
   text-overflow: ellipsis;
   margin-bottom: 0.15rem;
 }
-.card-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
+.card-meta { display: flex; align-items: center; gap: 0.3rem; }
 .card-year  { font-size: 0.7rem; color: var(--muted); }
 .card-dot   { font-size: 0.45rem; color: var(--muted2); }
 .card-genre { font-size: 0.68rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -18,9 +18,9 @@
           <!-- Poster strip -->
           <div class="modal-poster-wrap">
             <img
-              v-if="movie.image && !imgError"
-              :src="movie.image"
-              :alt="movie.title"
+              v-if="activeSeason.image && !imgError"
+              :src="activeSeason.image"
+              :alt="activeSeason.title"
               class="modal-poster-img"
               @error="imgError = true"
             />
@@ -35,31 +35,50 @@
           <!-- Info block -->
           <div class="modal-info">
             <div class="modal-badges">
-              <span v-if="movie.mpa" class="badge-pill" :class="`badge-${movie.mpa}`">
-                {{ displayMPA(movie.mpa) }}
+              <span v-if="activeSeason.mpa" class="badge-pill" :class="`badge-${activeSeason.mpa}`">
+                {{ displayMPA(activeSeason.mpa) }}
               </span>
-              <span v-if="movie.year" class="badge-pill year-pill">{{ movie.year }}</span>
-              <span v-for="genre in movie.genres" :key="genre" class="badge-pill genre-pill">{{ genre }}</span>
+              <span v-if="activeSeason.year" class="badge-pill year-pill">{{ activeSeason.year }}</span>
+              <span v-for="genre in activeSeason.genres" :key="genre" class="badge-pill genre-pill">{{ genre }}</span>
             </div>
-            <h2 class="modal-title">{{ movie.title }}</h2>
-            <p v-if="movie.starring" class="modal-starring">
-              <span class="starring-label">Starring</span>{{ movie.starring }}
+
+            <h2 class="modal-title">{{ movie.isTV ? movie.title : activeSeason.title }}</h2>
+
+            <!-- Season dropdown — multiple seasons -->
+            <div v-if="movie.isTV && movie.seasons.length > 1" class="season-selector">
+              <label class="season-label" for="season-select">Season</label>
+              <select
+                id="season-select"
+                class="season-select"
+                :value="activeSeasonIdx"
+                @change="onSeasonChange"
+              >
+                <option v-for="(s, idx) in movie.seasons" :key="idx" :value="idx">
+                  {{ s.seasonLabel || s.seasonSuffix || `Season ${idx + 1}` }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Single season label -->
+            <div v-else-if="movie.isTV && movie.seasons.length === 1" class="season-single">
+              {{ movie.seasons[0].seasonLabel || movie.seasons[0].seasonSuffix }}
+            </div>
+
+            <p v-if="activeSeason.starring" class="modal-starring">
+              <span class="starring-label">Starring</span>{{ activeSeason.starring }}
             </p>
           </div>
 
           <div class="modal-divider" />
 
-          <!-- Body: synopsis + meta -->
+          <!-- Body -->
           <div class="modal-body">
-
-            <!-- Synopsis with Read more -->
             <div class="synopsis-wrap">
-              <p
-                class="modal-synopsis"
-                :class="{ truncated: !synExpanded }"
-              >{{ movie.synopsis || 'No synopsis on file.' }}</p>
+              <p class="modal-synopsis" :class="{ truncated: !synExpanded }">
+                {{ activeSeason.synopsis || 'No synopsis on file.' }}
+              </p>
               <button
-                v-if="movie.synopsis && isTruncatable"
+                v-if="activeSeason.synopsis && isTruncatable"
                 class="read-more-btn"
                 @click="synExpanded = !synExpanded"
               >
@@ -67,19 +86,18 @@
               </button>
             </div>
 
-            <!-- Detail grid -->
             <dl class="detail-grid">
-              <template v-if="movie.location">
+              <template v-if="activeSeason.location">
                 <dt>Location</dt>
-                <dd class="location-value">📦 {{ movie.location }}</dd>
+                <dd class="location-value">📦 {{ activeSeason.location }}</dd>
               </template>
-              <template v-if="movie.mpaContent">
+              <template v-if="activeSeason.mpaContent">
                 <dt>MPA Content</dt>
-                <dd class="mpa-content-value">{{ movie.mpaContent }}</dd>
+                <dd class="mpa-content-value">{{ activeSeason.mpaContent }}</dd>
               </template>
             </dl>
-
           </div>
+
         </div>
       </div>
     </Transition>
@@ -94,18 +112,34 @@ const props = defineProps({
 })
 defineEmits(['close'])
 
-const imgError    = ref(false)
-const synExpanded = ref(false)
+const imgError        = ref(false)
+const synExpanded     = ref(false)
+const activeSeasonIdx = ref(0)
 
-// Rough check: synopsis longer than ~120 chars is truncatable
+const activeSeason = computed(() => {
+  if (!props.movie) return {}
+  if (!props.movie.isTV || !props.movie.seasons?.length) return props.movie
+  return props.movie.seasons[activeSeasonIdx.value] ?? props.movie.seasons[0]
+})
+
 const isTruncatable = computed(() =>
-  props.movie?.synopsis && props.movie.synopsis.length > 120
+  activeSeason.value?.synopsis && activeSeason.value.synopsis.length > 120
 )
 
 watch(() => props.movie, () => {
-  imgError.value    = false
-  synExpanded.value = false
+  imgError.value        = false
+  synExpanded.value     = false
+  activeSeasonIdx.value = 0
 })
+
+watch(activeSeasonIdx, () => {
+  synExpanded.value = false
+  imgError.value    = false
+})
+
+function onSeasonChange(e) {
+  activeSeasonIdx.value = parseInt(e.target.value)
+}
 
 function displayMPA(code) {
   if (!code) return ''
@@ -122,7 +156,6 @@ function displayMPA(code) {
 </script>
 
 <style scoped>
-/* ── Overlay ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -133,8 +166,6 @@ function displayMPA(code) {
   justify-content: center;
   padding: 1rem;
 }
-
-/* ── Sheet ── */
 .modal {
   position: relative;
   background: var(--bg2);
@@ -148,8 +179,6 @@ function displayMPA(code) {
   flex-direction: column;
   -webkit-overflow-scrolling: touch;
 }
-
-/* ── Close ── */
 .modal-close {
   position: absolute;
   top: 0.75rem;
@@ -169,8 +198,6 @@ function displayMPA(code) {
   transition: background 0.15s;
 }
 .modal-close:hover { background: rgba(0, 0, 0, 0.9); }
-
-/* ── Poster strip ── */
 .modal-poster-wrap {
   width: 100%;
   height: 260px;
@@ -195,11 +222,7 @@ function displayMPA(code) {
   color: var(--muted2);
 }
 .modal-poster-fallback svg { width: 56px; height: 56px; opacity: 0.25; }
-
-/* ── Info block ── */
-.modal-info {
-  padding: 1.25rem 1.5rem 1rem;
-}
+.modal-info { padding: 1.25rem 1.5rem 1rem; }
 .modal-badges {
   display: flex;
   flex-wrap: wrap;
@@ -215,14 +238,47 @@ function displayMPA(code) {
 }
 .year-pill  { background: rgba(255,255,255,0.07); color: var(--muted); }
 .genre-pill { background: rgba(232,184,75,0.12);  color: var(--accent); }
-
 .modal-title {
   font-family: var(--font-display);
   font-size: 2rem;
   letter-spacing: 1.5px;
   color: var(--text);
   line-height: 1.05;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+.season-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.season-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.season-select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  border-radius: 6px;
+  padding: 0.28rem 0.65rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.season-select:hover,
+.season-select:focus { border-color: var(--accent); }
+.season-single {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.04em;
 }
 .modal-starring {
   font-size: 0.82rem;
@@ -234,21 +290,13 @@ function displayMPA(code) {
   font-weight: 600;
   margin-right: 0.3rem;
 }
-
 .modal-divider {
   height: 1px;
   background: var(--border);
   margin: 0 1.5rem;
 }
-
-/* ── Body ── */
-.modal-body {
-  padding: 1.1rem 1.5rem 1.75rem;
-}
-
-/* Synopsis */
+.modal-body { padding: 1.1rem 1.5rem 1.75rem; }
 .synopsis-wrap { margin-bottom: 1.25rem; }
-
 .modal-synopsis {
   font-size: 0.875rem;
   color: #c0bfb8;
@@ -261,7 +309,6 @@ function displayMPA(code) {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .read-more-btn {
   background: none;
   border: none;
@@ -274,8 +321,6 @@ function displayMPA(code) {
   transition: opacity 0.15s;
 }
 .read-more-btn:hover { opacity: 0.75; }
-
-/* Detail grid */
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -293,28 +338,17 @@ function displayMPA(code) {
   color: var(--text);
   font-weight: 500;
 }
-.location-value   { color: var(--accent); }
+.location-value    { color: var(--accent); }
 .mpa-content-value { color: var(--muted); font-size: 0.8rem; font-weight: 400; font-style: italic; }
-
-/* ── Animation ── */
 .modal-enter-active { animation: slideUp 0.22s ease; }
 .modal-leave-active { animation: slideUp 0.15s ease reverse; }
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
-
-/* ── Mobile ── */
 @media (max-width: 600px) {
-  .modal-overlay {
-    padding: 0;
-    align-items: flex-end;
-  }
-  .modal {
-    max-width: 100%;
-    max-height: 92vh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  }
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { max-width: 100%; max-height: 92vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .modal-poster-wrap { height: 200px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .modal-title       { font-size: 1.5rem; }
   .modal-info        { padding: 1rem 1.1rem 0.75rem; }

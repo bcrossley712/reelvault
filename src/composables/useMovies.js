@@ -237,33 +237,43 @@ export function useMovies() {
 
   const activeMPACodes = computed(() => MPA_TIERS[mpaTierIdx.value].codes)
 
+  // Search runs across the FULL catalog regardless of genre/MPA filters
+  const searchResults = computed(() => {
+    if (!search.value) return null  // null = no active search
+    const q = search.value.toLowerCase()
+    return allMovies.value.filter(m => {
+      const base = [m.title, m.starring].join(' ').toLowerCase()
+      if (m.isTV && m.seasons) {
+        const seasonText = m.seasons
+          .map(s => [s.title, s.starring].join(' '))
+          .join(' ')
+          .toLowerCase()
+        return base.includes(q) || seasonText.includes(q)
+      }
+      return base.includes(q)
+    })
+  })
+
+  // Genre + MPA filter runs on the full catalog when no search is active,
+  // or is bypassed entirely when a search term is present
   const filteredMovies = computed(() => {
-    let list = allMovies.value
+    // Active search — ignore genre/MPA filters, show full catalog matches
+    let list = searchResults.value !== null
+      ? searchResults.value
+      : allMovies.value
 
-    if (activeGenre.value)
-      list = list.filter(m => m.genres.includes(activeGenre.value))
+    // Only apply genre/MPA filters when not searching
+    if (searchResults.value === null) {
+      if (activeGenre.value)
+        list = list.filter(m => m.genres.includes(activeGenre.value))
 
-    if (activeMPACodes.value !== null) {
-      const allowed = activeMPACodes.value
-      list = list.filter(m => {
-        if (!m.mpa) return true
-        return allowed.includes(m.mpa)
-      })
-    }
-
-    if (search.value) {
-      const q = search.value.toLowerCase()
-      list = list.filter(m => {
-        const base = [m.title, m.starring].join(' ').toLowerCase()
-        if (m.isTV && m.seasons) {
-          const seasonText = m.seasons
-            .map(s => [s.title, s.starring].join(' '))
-            .join(' ')
-            .toLowerCase()
-          return base.includes(q) || seasonText.includes(q)
-        }
-        return base.includes(q)
-      })
+      if (activeMPACodes.value !== null) {
+        const allowed = activeMPACodes.value
+        list = list.filter(m => {
+          if (!m.mpa) return true
+          return allowed.includes(m.mpa)
+        })
+      }
     }
 
     const sorted = [...list]

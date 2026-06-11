@@ -5,13 +5,15 @@ import * as XLSX from 'xlsx'
 
 // ── MPA rating hierarchy ──────────────────────────────────────────────────────
 export const MPA_TIERS = [
+  // NR (Not Rated) is included in every tier — unsubmitted titles like children's
+  // movies should always be visible. UR (Unrated) is excluded until "All ratings"
+  // since it typically indicates modified/explicit content.
   { label: 'All Ratings',       codes: null },
-  { label: 'G only',            codes: ['G', 'TVY', 'TVG'] },
-  { label: 'TV-Y through TV-G', codes: ['TVY', 'TVG', 'G'] },
-  { label: 'TV-Y through PG',   codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG'] },
-  { label: 'TV-Y through PG-13',codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14'] },
-  { label: 'TV-Y through R',    codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'R'] },
-  { label: 'All (incl. NC-17)', codes: null },
+  { label: 'G only',            codes: ['G', 'TVY', 'TVG', 'NR'] },
+  { label: 'TV-Y through TV-G', codes: ['TVY', 'TVG', 'G', 'NR'] },
+  { label: 'TV-Y through PG',   codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'NR'] },
+  { label: 'TV-Y through PG-13',codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'NR'] },
+  { label: 'TV-Y through R',    codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'R', 'NR'] },
 ]
 
 export const DEFAULT_MPA_TIER = 4

@@ -5,15 +5,14 @@ import * as XLSX from 'xlsx'
 
 // ── MPA rating hierarchy ──────────────────────────────────────────────────────
 export const MPA_TIERS = [
-  // NR (Not Rated) is included in every tier — unsubmitted titles like children's
-  // movies should always be visible. UR (Unrated) is excluded until "All ratings"
-  // since it typically indicates modified/explicit content.
-  { label: 'All Ratings',       codes: null },
-  { label: 'G only',            codes: ['G', 'TVY', 'TVG', 'NR'] },
-  { label: 'TV-Y through TV-G', codes: ['TVY', 'TVG', 'G', 'NR'] },
-  { label: 'TV-Y through PG',   codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'NR'] },
-  { label: 'TV-Y through PG-13',codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'NR'] },
-  { label: 'TV-Y through R',    codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'R', 'NR'] },
+  // NR (Not Rated) included in every tier — unsubmitted titles like children's
+  // movies should always be visible. UR (Unrated) only appears in "All Ratings".
+  { label: 'All Ratings',        codes: null },
+  { label: 'G only',             codes: ['G', 'TVY', 'TVG', 'NR'] },
+  { label: 'TV-Y through TV-G',  codes: ['TVY', 'TVG', 'G', 'NR'] },
+  { label: 'TV-Y through PG',    codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'NR'] },
+  { label: 'TV-Y through PG-13', codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'NR'] },
+  { label: 'TV-Y through R',     codes: ['TVY', 'TVG', 'TVY7', 'G', 'PG', 'TVPG', 'PG13', 'TV14', 'R', 'NR'] },
 ]
 
 export const DEFAULT_MPA_TIER = 4
@@ -40,73 +39,31 @@ function findColumnIndexExcluding(headers, candidates, excluded) {
   return -1
 }
 
-// ── TV season detection ───────────────────────────────────────────────────────
-// Strips the full suffix off a title to get the bare show name.
-// Captures: S1, S01, SEASON 1, PT1, PART 1, SET 1, VOL 1, BK1, COLLECTION 1
-// BK (Book) is listed before VOL so "BK1 VOL1" matches BK1 as the primary label.
-// Also swallows trailing disc info (D1, DISC 1, D1A) and A/B variants — those
-// are irrelevant to grouping and are excluded from the dropdown label.
-const STRIP_ALL_RE = /[\s_-]*(S\d{1,2}|SEASON\s*\d+|PT\.?\s*\d+|PART\.?\s*\d+|SET\.?\s*\d+|COLLECTION\s*\d+|COLL\.?\s*\d+|BK\.?\s*\d+|VOL\.?\s*\d+|VOLUME\s*\d+)(\s*(D\s*0?\d+[AB]?|DISC\s*\d+[AB]?))?(\s*[AB])?$/i
+// ── TV season detection — dash-based convention ───────────────────────────────
+// Titles must use " - S1", " - PT1", " - BK1" etc. to be treated as TV.
+// Movies with numbered titles (Blade 2, Rocky 4) are never affected.
+const TV_DASH_RE = /\s+-\s+(S(\d{1,2})|PT(\d{1,2})|BK(\d{1,2})|Vol\s*(\d{1,2})|Set\s*(\d{1,2})|Collection\s*(\d{1,2}))$/i
 
-// Extracts the season sequence number for sorting
-const SEASON_NUM_RE = /(?:S|SEASON\s*|PT\.?\s*|PART\.?\s*|SET\.?\s*|COLLECTION\s*|COLL\.?\s*|VOL\.?\s*|VOLUME\s*|BK\.?\s*)(\d{1,2})/i
+function detectTV(title) {
+  const m = title.match(TV_DASH_RE)
+  if (!m) return { isTV: false, baseName: title, seasonNum: null, seasonLabel: '' }
 
-function parseSeasonNumber(suffix) {
-  if (!suffix) return 1
-  const m = suffix.match(SEASON_NUM_RE)
-  return m ? parseInt(m[1], 10) : 1
-}
+  const suffix    = m[1]                              // e.g. "S1", "PT2", "BK3"
+  const baseName  = title.slice(0, title.length - m[0].length).trim()
+  const num       = parseInt(m.slice(2).find(Boolean)) // first capture group with a value
 
-// Human-readable dropdown label — disc numbers intentionally excluded.
-// rawTitle is passed so we can check for a BK number even when VOL is the
-// primary regex match (e.g. "AVATAR BK1 VOL1" → Book 1, not Vol. 1)
-function buildSeasonLabel(suffix, rawTitle) {
-  if (!suffix) return ''
-  const s = suffix.trim()
+  // Human-readable label for the dropdown
+  const upper = suffix.toUpperCase()
+  let seasonLabel
+  if      (/^S\d/.test(upper))   seasonLabel = `Season ${num}`
+  else if (/^PT/.test(upper))    seasonLabel = `Part ${num}`
+  else if (/^BK/.test(upper))    seasonLabel = `Book ${num}`
+  else if (/^VOL/i.test(upper))  seasonLabel = `Vol. ${num}`
+  else if (/^SET/i.test(upper))  seasonLabel = `Set ${num}`
+  else if (/^COL/i.test(upper))  seasonLabel = `Collection ${num}`
+  else                           seasonLabel = suffix
 
-  // If the raw title contains a BK number, that takes priority as the label
-  const bkMatch = rawTitle && rawTitle.match(/BK\.?\s*(\d+)/i)
-  if (bkMatch) return `Book ${parseInt(bkMatch[1], 10)}`
-
-  const m = s.match(/^(S(\d{1,2})|SEASON\s*(\d+)|PT\.?\s*(\d+)|PART\.?\s*(\d+)|SET\.?\s*(\d+)|VOL\.?\s*(\d+)|VOLUME\s*(\d+)|COLLECTION\s*(\d+)|COLL\.?\s*(\d+))/i)
-  if (!m) return s
-  const num = m.slice(2).find(v => v !== undefined)
-  const key = m[1].toUpperCase()
-  if (/^S\d/.test(key) || /^SEASON/.test(key))      return `Season ${num}`
-  if (/^PT/.test(key) || /^PART/.test(key))          return `Part ${num}`
-  if (/^SET/.test(key))                              return `Set ${num}`
-  if (/^VOL/.test(key) || /^VOLUME/.test(key))       return `Vol. ${num}`
-  if (/^COLL/.test(key))                             return `Collection ${num}`
-  return s
-}
-
-// Returns the collective noun for the card badge: "Seasons", "Parts", "Books", etc.
-function detectGroupType(title) {
-  if (/BK\.?\s*\d+/i.test(title))                        return 'Books'
-  if (/PT\.?\s*\d+|PART\.?\s*\d+/i.test(title))          return 'Parts'
-  if (/SET\.?\s*\d+/i.test(title))                        return 'Sets'
-  if (/VOL\.?\s*\d+|VOLUME\s*\d+/i.test(title))          return 'Vols.'
-  if (/COLLECTION\s*\d+|COLL\.?\s*\d+/i.test(title))     return 'Collections'
-  return 'Seasons'  // default for S1, SEASON 1, etc.
-}
-
-function detectTV(title, location) {
-  const tvLoc = location && /tv\s*series|anime\/tv|cartoon\/tv/i.test(location)
-  const suffixMatch = title.match(STRIP_ALL_RE)
-
-  if (!suffixMatch && !tvLoc) {
-    return { isTV: false, baseName: title, seasonNum: null, suffix: '', seasonLabel: '' }
-  }
-
-  const suffix   = suffixMatch ? suffixMatch[0] : ''
-  let baseName   = suffixMatch ? title.slice(0, title.length - suffix.length).trim() : title.trim()
-  // Second pass: strip any residual BK/VOL/PT/SET/PART/DISC number left in the base
-  // e.g. "AVATAR BK1" → "AVATAR" after VOL1 was stripped as the primary suffix
-  baseName = baseName.replace(/[\s_-]*(BK\.?\s*\d+|VOL\.?\s*\d+|PT\.?\s*\d+|PART\.?\s*\d+|SET\.?\s*\d+|DISC\s*\d+)$/i, '').trim()
-  const seasonNum   = parseSeasonNumber(suffix)
-  const seasonLabel = buildSeasonLabel(suffix.trim(), title)
-
-  return { isTV: true, baseName, seasonNum, suffix: suffix.trim(), seasonLabel }
+  return { isTV: true, baseName, seasonNum: num, seasonLabel }
 }
 
 // ── Worksheet parsing ─────────────────────────────────────────────────────────
@@ -130,8 +87,7 @@ function parseWorksheet(data) {
     .filter(row => get(row, 'title'))
     .map((row, index) => {
       const rawTitle = get(row, 'title') || 'Untitled'
-      const location = get(row, 'location') || ''
-      const { isTV, baseName, seasonNum, suffix, seasonLabel } = detectTV(rawTitle, location)
+      const { isTV, baseName, seasonNum, seasonLabel } = detectTV(rawTitle)
 
       return {
         id:           index,
@@ -139,8 +95,8 @@ function parseWorksheet(data) {
         baseName:     isTV ? baseName : rawTitle,
         isTV,
         seasonNum,
-        seasonSuffix: suffix,
         seasonLabel,
+        seasonSuffix: seasonLabel, // kept for modal compatibility
         groupType:    isTV ? detectGroupType(rawTitle) : '',
         genres:       parseGenres(get(row, 'genre')),
         genre:        get(row, 'genre')      || '',
@@ -148,11 +104,23 @@ function parseWorksheet(data) {
         mpaContent:   get(row, 'mpaContent') || '',
         starring:     get(row, 'starring')   || '',
         year:         parseInt(get(row, 'year')) || null,
-        location,
+        location:     get(row, 'location')   || '',
         image:        get(row, 'image')      || '',
         synopsis:     get(row, 'synopsis')   || '',
       }
     })
+}
+
+function detectGroupType(title) {
+  const m = title.match(TV_DASH_RE)
+  if (!m) return 'Seasons'
+  const s = m[1].toUpperCase()
+  if (/^PT/.test(s))  return 'Parts'
+  if (/^BK/.test(s))  return 'Books'
+  if (/^VOL/i.test(s)) return 'Vols.'
+  if (/^SET/i.test(s)) return 'Sets'
+  if (/^COL/i.test(s)) return 'Collections'
+  return 'Seasons'
 }
 
 function parseGenres(raw) {
@@ -239,32 +207,76 @@ export function useMovies() {
 
   const activeMPACodes = computed(() => MPA_TIERS[mpaTierIdx.value].codes)
 
+  // ── Smart search ────────────────────────────────────────────────────────────
+  // Supports abbreviations and reverse lookups:
+  //   LOTR    → finds Lord of the Rings entries
+  //   TMNT    → finds Teenage Mutant Ninja Turtles
+  //   "ninja" → finds TMNT (reverse alias match)
+  //   MCU/marvel/superhero → finds all Superhero-tagged titles
+  const ALIASES = {
+    // Franchises
+    'lotr':          'lord of the rings',
+    'tmnt':          'teenage mutant ninja turtles',
+    'hp':            'harry potter',
+    'sw':            'star wars',
+    'dbz':           'dragon ball z',
+    'fma':           'fullmetal alchemist',
+    'mha':           'my hero academia',
+    'aot':           'attack on titan',
+    'bttf':          'back to the future',
+    'potc':          'pirates of the caribbean',
+    'hg':            'hunger games',
+    'mi':            'mission impossible',
+    'ff':            'fast and furious',
+    'f&f':           'fast and furious',
+    'jw':            'jurassic world',
+    // Superhero shortcuts — all resolve to "superhero" which matches the genre tag
+    'mcu':           'superhero',
+    'marvel':        'superhero',
+    'dc':            'superhero',
+    // Common title variations
+    'xmen':          'x-men',
+    'x men':         'x-men',
+    'spiderman':     'spider-man',
+    'spider man':    'spider-man',
+  }
+
+  function expandQuery(q) {
+    const lower = q.trim().toLowerCase()
+    // Direct alias lookup: "lotr" → "lord of the rings"
+    if (ALIASES[lower]) return [lower, ALIASES[lower]]
+    // Reverse alias lookup: "ninja" → also search via "tmnt" alias value
+    const reverseMatches = Object.entries(ALIASES)
+      .filter(([abbr, full]) => full.includes(lower))
+      .map(([abbr]) => abbr)
+    return [lower, ...reverseMatches]
+  }
+
+  function movieMatchesQuery(m, terms) {
+    const haystack = [m.title, m.starring, m.genre, m.baseName || '']
+      .join(' ').toLowerCase()
+    return terms.some(t => haystack.includes(t))
+  }
+
   // Search runs across the FULL catalog regardless of genre/MPA filters
   const searchResults = computed(() => {
-    if (!search.value) return null  // null = no active search
-    const q = search.value.toLowerCase()
+    if (!search.value) return null
+    const terms = expandQuery(search.value)
     return allMovies.value.filter(m => {
-      const base = [m.title, m.starring].join(' ').toLowerCase()
+      if (movieMatchesQuery(m, terms)) return true
+      // Also search across all seasons for TV shows
       if (m.isTV && m.seasons) {
-        const seasonText = m.seasons
-          .map(s => [s.title, s.starring].join(' '))
-          .join(' ')
-          .toLowerCase()
-        return base.includes(q) || seasonText.includes(q)
+        return m.seasons.some(s => movieMatchesQuery(s, terms))
       }
-      return base.includes(q)
+      return false
     })
   })
 
-  // Genre + MPA filter runs on the full catalog when no search is active,
-  // or is bypassed entirely when a search term is present
   const filteredMovies = computed(() => {
-    // Active search — ignore genre/MPA filters, show full catalog matches
     let list = searchResults.value !== null
       ? searchResults.value
       : allMovies.value
 
-    // Only apply genre/MPA filters when not searching
     if (searchResults.value === null) {
       if (activeGenre.value)
         list = list.filter(m => m.genres.includes(activeGenre.value))

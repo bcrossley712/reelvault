@@ -125,5 +125,6 @@ defineEmits(['update:modelValue'])
 @media (max-width: 600px) {
   .app-header { padding: 0 1rem; gap: 0.65rem; height: 54px; }
   .header-count { display: none; }
+  .search-input {font-size: 16px;}
 }
 </style>

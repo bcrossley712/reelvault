@@ -1,18 +1,47 @@
 <template>
   <div class="filter-bar">
     <div class="dropdowns">
+
+      <!-- Category -->
       <div class="filter-group">
         <label class="filter-label" for="genre-select">Category</label>
         <select
           id="genre-select"
           :value="activeGenre"
-          @change="$emit('update:activeGenre', $event.target.value)"
+          @change="onGenreChange"
         >
           <option value="">All</option>
           <option v-for="genre in genres" :key="genre" :value="genre">{{ genre }}</option>
         </select>
       </div>
 
+      <!-- Sub-category — only shows when a genre is selected and has sub-genres -->
+      <div class="filter-group" v-if="activeGenre && subGenres.length">
+        <label class="filter-label" for="sub-select">Filter by</label>
+        <select
+          id="sub-select"
+          :value="subGenre"
+          @change="$emit('update:subGenre', $event.target.value)"
+        >
+          <option value="">All</option>
+          <option v-for="g in subGenres" :key="g" :value="g">{{ g }}</option>
+        </select>
+      </div>
+
+      <!-- Decade -->
+      <div class="filter-group">
+        <label class="filter-label" for="decade-select">Decade</label>
+        <select
+          id="decade-select"
+          :value="decade"
+          @change="$emit('update:decade', $event.target.value)"
+        >
+          <option value="">Any</option>
+          <option v-for="d in decades" :key="d" :value="d">{{ d }}s</option>
+        </select>
+      </div>
+
+      <!-- Sort -->
       <div class="filter-group">
         <label class="filter-label" for="sort-select">Sort</label>
         <select
@@ -28,6 +57,7 @@
         </select>
       </div>
 
+      <!-- Content rating -->
       <div class="filter-group">
         <label class="filter-label" for="mpa-select">Content</label>
         <select
@@ -41,12 +71,11 @@
         </select>
       </div>
 
-      <!-- Active filter pills -->
+      <!-- Clear filters -->
       <div class="active-filters" v-if="hasActiveFilters">
-        <button class="reset-btn" @click="$emit('reset')">
-          Clear filters
-        </button>
+        <button class="reset-btn" @click="$emit('reset')">Clear filters</button>
       </div>
+
     </div>
   </div>
 </template>
@@ -59,16 +88,31 @@ const mpaTiers = MPA_TIERS
 
 const props = defineProps({
   genres:      { type: Array,  default: () => [] },
+  subGenres:   { type: Array,  default: () => [] },
+  decades:     { type: Array,  default: () => [] },
   sortKey:     { type: String, default: 'random' },
   activeGenre: { type: String, default: '' },
+  subGenre:    { type: String, default: '' },
+  decade:      { type: String, default: '' },
   mpaTierIdx:  { type: Number, default: DEFAULT_MPA_TIER },
 })
-defineEmits(['update:sortKey', 'update:activeGenre', 'update:mpaTierIdx', 'reset'])
+
+const emit = defineEmits([
+  'update:sortKey', 'update:activeGenre', 'update:subGenre',
+  'update:decade', 'update:mpaTierIdx', 'reset'
+])
+
+function onGenreChange(e) {
+  emit('update:activeGenre', e.target.value)
+  emit('update:subGenre', '')  // reset sub-genre when primary changes
+}
 
 const hasActiveFilters = computed(() =>
   props.activeGenre !== '' ||
-  props.mpaTierIdx !== DEFAULT_MPA_TIER ||
-  props.sortKey !== 'random'
+  props.subGenre    !== '' ||
+  props.decade      !== '' ||
+  props.mpaTierIdx  !== DEFAULT_MPA_TIER ||
+  props.sortKey     !== 'random'
 )
 </script>
 
@@ -118,9 +162,7 @@ select {
 }
 select:hover, select:focus { border-color: var(--accent); }
 
-.active-filters {
-  margin-left: auto;
-}
+.active-filters { margin-left: auto; }
 
 .reset-btn {
   font-family: var(--font-body);
@@ -134,10 +176,7 @@ select:hover, select:focus { border-color: var(--accent); }
   transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
-.reset-btn:hover {
-  color: var(--text);
-  border-color: var(--muted2);
-}
+.reset-btn:hover { color: var(--text); border-color: var(--muted2); }
 
 @media (max-width: 600px) {
   .filter-bar { top: 54px; }

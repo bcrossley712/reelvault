@@ -7,8 +7,12 @@
 
     <FilterToolbar
       :genres="genres"
+      :sub-genres="subGenres"
+      :decades="decades"
       v-model:sort-key="sortKey"
       v-model:active-genre="activeGenre"
+      v-model:sub-genre="subGenre"
+      v-model:decade="decade"
       v-model:mpa-tier-idx="mpaTierIdx"
       @reset="resetFilters"
     />
@@ -37,8 +41,8 @@ import { useMovies, DEFAULT_MPA_TIER } from './composables/useMovies.js'
 
 const {
   loading, error,
-  search, sortKey, activeGenre, mpaTierIdx,
-  genres,
+  search, sortKey, activeGenre, subGenre, decade, mpaTierIdx,
+  genres, subGenres, decades,
   filteredMovies,
   loadCollection,
 } = useMovies()
@@ -46,10 +50,12 @@ const {
 const selectedMovie = ref(null)
 
 function resetFilters() {
-  search.value = ''
-  sortKey.value = 'random'
+  search.value      = ''
+  sortKey.value     = 'random'
   activeGenre.value = ''
-  mpaTierIdx.value = DEFAULT_MPA_TIER
+  subGenre.value    = ''
+  decade.value      = ''
+  mpaTierIdx.value  = DEFAULT_MPA_TIER
 }
 
 watch(selectedMovie, val => {

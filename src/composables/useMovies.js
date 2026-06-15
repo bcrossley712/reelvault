@@ -17,6 +17,54 @@ export const MPA_TIERS = [
 
 export const DEFAULT_MPA_TIER = 4
 
+// ── Seasonal holiday genres ──────────────────────────────────────────────────
+// Holiday genres are hidden from browsing outside their date window.
+// They remain findable via search or by selecting the holiday genre directly.
+export const SEASONAL_GENRES = {
+  'Halloween':    { start: { month: 10, day: 1  }, end: { month: 10, day: 31 } },
+  'Christmas':    { start: { month: 11, day: 25 }, end: { month: 12, day: 26 } },
+  'Thanksgiving': { start: { month: 11, day: 7  }, end: { month: 11, day: 28 } },
+  // Easter is a moving date — within 14 days before through the Sunday itself
+  'Easter':       null,  // handled separately via easterInSeason()
+}
+
+function easterDate(year) {
+  // Anonymous Gregorian algorithm
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4), k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day   = ((h + l - 7 * m + 114) % 31) + 1
+  return new Date(year, month - 1, day)
+}
+
+function easterInSeason() {
+  const now    = new Date()
+  const easter = easterDate(now.getFullYear())
+  const start  = new Date(easter); start.setDate(easter.getDate() - 14)
+  return now >= start && now <= easter
+}
+
+export function isHolidayInSeason(genre) {
+  const now = new Date()
+  const m   = now.getMonth() + 1  // 1-indexed
+  const d   = now.getDate()
+
+  if (genre === 'Easter')       return easterInSeason()
+  if (genre === 'Thanksgiving') {
+    // 2 weeks before through Nov 28
+    return (m === 11 && d >= 7 && d <= 28)
+  }
+  if (genre === 'Christmas')    return (m === 11 && d >= 25) || (m === 12 && d <= 26)
+  if (genre === 'Halloween')    return m === 10
+  return true  // non-holiday genres always in season
+}
+
+export const HOLIDAY_GENRES = new Set(['Halloween', 'Christmas', 'Easter', 'Thanksgiving'])
+
 // ── Column auto-detection ─────────────────────────────────────────────────────
 const COLUMN_ALIASES = {
   title:      ['title'],
@@ -175,6 +223,8 @@ export function useMovies() {
   const search      = ref('')
   const sortKey     = ref('random')
   const activeGenre = ref('')
+  const subGenre    = ref('')
+  const decade      = ref('')
   const mpaTierIdx  = ref(DEFAULT_MPA_TIER)
 
   async function loadCollection() {
@@ -190,7 +240,8 @@ export function useMovies() {
       const parsed = parseWorksheet(data)
       allMovies.value = groupTVSeasons(parsed)
 
-      const g = genres.value
+      // Pick a random genre that is currently in season
+      const g = browsableGenres.value
       if (g.length > 0) activeGenre.value = randomFrom(g)
     } catch (err) {
       error.value = err.message
@@ -202,6 +253,37 @@ export function useMovies() {
   const genres = computed(() => {
     const set = new Set()
     allMovies.value.forEach(m => m.genres.forEach(g => set.add(g)))
+    return [...set].sort()
+  })
+
+  // Genres available for random selection on load — excludes out-of-season holidays
+  const browsableGenres = computed(() =>
+    genres.value.filter(g => !HOLIDAY_GENRES.has(g) || isHolidayInSeason(g))
+  )
+
+  // Sub-genres: genres that co-exist with the active genre selection
+  const subGenres = computed(() => {
+    if (!activeGenre.value) return []
+    const set = new Set()
+    allMovies.value.forEach(m => {
+      if (m.genres.includes(activeGenre.value)) {
+        m.genres.forEach(g => {
+          if (g !== activeGenre.value) set.add(g)
+        })
+      }
+    })
+    // Exclude out-of-season holidays from sub-genre list
+    return [...set]
+      .filter(g => !HOLIDAY_GENRES.has(g) || isHolidayInSeason(g) || g === activeGenre.value)
+      .sort()
+  })
+
+  // Decades derived from year data
+  const decades = computed(() => {
+    const set = new Set()
+    allMovies.value.forEach(m => {
+      if (m.year) set.add(Math.floor(m.year / 10) * 10)
+    })
     return [...set].sort()
   })
 
@@ -243,13 +325,22 @@ export function useMovies() {
 
   function expandQuery(q) {
     const lower = q.trim().toLowerCase()
+    const terms = new Set([lower])
+
+    // Strip leading "the " so "the blacklist" finds "blacklist"
+    if (lower.startsWith('the ')) terms.add(lower.slice(4).trim())
+    // Add "the " prefix so "blacklist" also finds "the blacklist"
+    else terms.add('the ' + lower)
+
     // Direct alias lookup: "lotr" → "lord of the rings"
-    if (ALIASES[lower]) return [lower, ALIASES[lower]]
+    if (ALIASES[lower]) terms.add(ALIASES[lower])
+
     // Reverse alias lookup: "ninja" → also search via "tmnt" alias value
-    const reverseMatches = Object.entries(ALIASES)
+    Object.entries(ALIASES)
       .filter(([abbr, full]) => full.includes(lower))
-      .map(([abbr]) => abbr)
-    return [lower, ...reverseMatches]
+      .forEach(([abbr]) => terms.add(abbr))
+
+    return [...terms]
   }
 
   function movieMatchesQuery(m, terms) {
@@ -278,9 +369,36 @@ export function useMovies() {
       : allMovies.value
 
     if (searchResults.value === null) {
+      // ── Seasonal holiday filtering ──────────────────────────────────────────
+      // Out-of-season holiday genres are excluded UNLESS that holiday genre
+      // is the actively selected genre (user intentionally browsing it)
+      list = list.filter(m => {
+        return m.genres.every(g => {
+          if (!HOLIDAY_GENRES.has(g)) return true          // not a holiday genre
+          if (isHolidayInSeason(g)) return true            // in season — show it
+          if (g === activeGenre.value) return true         // directly selected — show it
+          if (g === subGenre.value) return true            // directly selected as sub — show it
+          return false                                     // out of season — hide
+        }) || m.genres.some(g =>
+          (g === activeGenre.value || g === subGenre.value) && HOLIDAY_GENRES.has(g)
+        )
+      })
+
+      // ── Genre filter ──────────────────────────────────────────────────────
       if (activeGenre.value)
         list = list.filter(m => m.genres.includes(activeGenre.value))
 
+      // ── Sub-genre filter (AND with active genre) ──────────────────────────
+      if (subGenre.value)
+        list = list.filter(m => m.genres.includes(subGenre.value))
+
+      // ── Decade filter ─────────────────────────────────────────────────────
+      if (decade.value) {
+        const d = parseInt(decade.value)
+        list = list.filter(m => m.year && Math.floor(m.year / 10) * 10 === d)
+      }
+
+      // ── MPA filter ────────────────────────────────────────────────────────
       if (activeMPACodes.value !== null) {
         const allowed = activeMPACodes.value
         list = list.filter(m => {
@@ -301,11 +419,15 @@ export function useMovies() {
     return sorted
   })
 
+  // Reset sub-genre when primary genre changes
+  const resetSubGenre = () => { subGenre.value = '' }
+
   return {
     allMovies, loading, error,
-    search, sortKey, activeGenre, mpaTierIdx,
-    genres,
+    search, sortKey, activeGenre, subGenre, decade, mpaTierIdx,
+    genres, subGenres, decades, browsableGenres,
     filteredMovies,
     loadCollection,
+    resetSubGenre,
   }
 }

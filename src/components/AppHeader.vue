@@ -24,8 +24,11 @@
       >✕</button>
     </div>
 
-    <div class="header-count" aria-live="polite">
-      {{ count }} title{{ count !== 1 ? 's' : '' }}
+    <div class="header-right">
+      <div class="header-count" aria-live="polite">
+        {{ count }} title{{ count !== 1 ? 's' : '' }}
+      </div>
+      <button class="help-btn" aria-label="Help" @click="$emit('help')">?</button>
     </div>
   </header>
 </template>
@@ -35,7 +38,7 @@ defineProps({
   modelValue: { type: String, default: '' },
   count:      { type: Number, default: 0  },
 })
-defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue', 'help'])
 </script>
 
 <style scoped>
@@ -113,18 +116,44 @@ defineEmits(['update:modelValue'])
 }
 .search-clear:hover { color: var(--text); }
 
-.header-count {
+.header-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.header-count {
   font-size: 0.78rem;
   color: var(--muted);
   white-space: nowrap;
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.help-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.help-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 @media (max-width: 600px) {
   .app-header { padding: 0 1rem; gap: 0.65rem; height: 54px; }
   .header-count { display: none; }
-  .search-input {font-size: 16px;}
 }
 </style>

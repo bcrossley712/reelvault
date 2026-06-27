@@ -3,6 +3,7 @@
     <AppHeader
       v-model="search"
       :count="filteredMovies.length"
+      @help="tutorialRef?.open()"
     />
 
     <FilterToolbar
@@ -28,6 +29,8 @@
       :movie="selectedMovie"
       @close="selectedMovie = null"
     />
+
+    <TutorialModal ref="tutorialRef" />
   </div>
 </template>
 
@@ -37,6 +40,7 @@ import AppHeader     from './components/AppHeader.vue'
 import FilterToolbar from './components/FilterToolbar.vue'
 import MovieGrid     from './components/MovieGrid.vue'
 import MovieModal    from './components/MovieModal.vue'
+import TutorialModal from './components/TutorialModal.vue'
 import { useMovies, DEFAULT_MPA_TIER } from './composables/useMovies.js'
 
 const {
@@ -48,6 +52,7 @@ const {
 } = useMovies()
 
 const selectedMovie = ref(null)
+const tutorialRef   = ref(null)
 
 function resetFilters() {
   search.value      = ''

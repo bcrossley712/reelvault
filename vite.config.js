@@ -25,6 +25,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,xlsx}'],
+        navigateFallback: 'index.html',
         runtimeCaching: [
           {
             urlPattern: /movies\.xlsx$/,

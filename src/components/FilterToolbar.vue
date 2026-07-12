@@ -62,12 +62,13 @@
         <label class="filter-label" for="mpa-select">Content</label>
         <select
           id="mpa-select"
-          :value="mpaTierIdx"
-          @change="$emit('update:mpaTierIdx', Number($event.target.value))"
+          :value="mpaSelectValue"
+          @change="onMpaSelectChange($event.target.value)"
         >
           <option v-for="(tier, idx) in mpaTiers" :key="idx" :value="idx">
             {{ tier.label }}
           </option>
+          <option value="custom">Custom…</option>
         </select>
       </div>
 
@@ -77,29 +78,50 @@
       </div>
 
     </div>
+
+    <!-- Custom rating checkboxes — only shown when "Custom…" is selected -->
+    <div class="custom-mpa-panel" v-if="useCustomMpa">
+      <label
+        v-for="code in allMpaCodes"
+        :key="code"
+        class="mpa-checkbox"
+      >
+        <input
+          type="checkbox"
+          :checked="customMpaCodes.includes(code)"
+          @change="$emit('toggle-custom-code', code)"
+        />
+        {{ mpaLabels[code] }}
+      </label>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { MPA_TIERS, DEFAULT_MPA_TIER } from '../composables/useMovies.js'
+import { MPA_TIERS, DEFAULT_MPA_TIER, ALL_MPA_CODES, MPA_CODE_LABELS } from '../composables/useMovies.js'
 
-const mpaTiers = MPA_TIERS
+const mpaTiers   = MPA_TIERS
+const allMpaCodes = ALL_MPA_CODES
+const mpaLabels   = MPA_CODE_LABELS
 
 const props = defineProps({
-  genres:      { type: Array,  default: () => [] },
-  subGenres:   { type: Array,  default: () => [] },
-  decades:     { type: Array,  default: () => [] },
-  sortKey:     { type: String, default: 'random' },
-  activeGenre: { type: String, default: '' },
-  subGenre:    { type: String, default: '' },
-  decade:      { type: String, default: '' },
-  mpaTierIdx:  { type: Number, default: DEFAULT_MPA_TIER },
+  genres:        { type: Array,   default: () => [] },
+  subGenres:     { type: Array,   default: () => [] },
+  decades:       { type: Array,   default: () => [] },
+  sortKey:       { type: String,  default: 'random' },
+  activeGenre:   { type: String,  default: '' },
+  subGenre:      { type: String,  default: '' },
+  decade:        { type: String,  default: '' },
+  mpaTierIdx:    { type: Number,  default: DEFAULT_MPA_TIER },
+  useCustomMpa:  { type: Boolean, default: false },
+  customMpaCodes:{ type: Array,   default: () => [] },
 })
 
 const emit = defineEmits([
   'update:sortKey', 'update:activeGenre', 'update:subGenre',
-  'update:decade', 'update:mpaTierIdx', 'reset'
+  'update:decade', 'select-mpa-tier', 'enable-custom-mpa',
+  'toggle-custom-code', 'reset'
 ])
 
 function onGenreChange(e) {
@@ -107,12 +129,25 @@ function onGenreChange(e) {
   emit('update:subGenre', '')  // reset sub-genre when primary changes
 }
 
+// The <select> needs a single value; represent Custom mode with the
+// string 'custom' and fall back to the numeric tier index otherwise.
+const mpaSelectValue = computed(() => props.useCustomMpa ? 'custom' : props.mpaTierIdx)
+
+function onMpaSelectChange(value) {
+  if (value === 'custom') {
+    emit('enable-custom-mpa')
+  } else {
+    emit('select-mpa-tier', Number(value))
+  }
+}
+
 const hasActiveFilters = computed(() =>
-  props.activeGenre !== '' ||
-  props.subGenre    !== '' ||
-  props.decade      !== '' ||
-  props.mpaTierIdx  !== DEFAULT_MPA_TIER ||
-  props.sortKey     !== 'random'
+  props.activeGenre  !== '' ||
+  props.subGenre     !== '' ||
+  props.decade       !== '' ||
+  props.useCustomMpa ||
+  props.mpaTierIdx   !== DEFAULT_MPA_TIER ||
+  props.sortKey      !== 'random'
 )
 </script>
 
@@ -164,6 +199,28 @@ select:hover, select:focus { border-color: var(--accent); }
 
 .active-filters { margin-left: auto; }
 
+.custom-mpa-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  padding: 0 1.5rem 0.7rem;
+}
+
+.mpa-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.mpa-checkbox input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .reset-btn {
   font-family: var(--font-body);
   font-size: 0.72rem;
@@ -182,5 +239,6 @@ select:hover, select:focus { border-color: var(--accent); }
   .filter-bar { top: 54px; }
   .dropdowns { padding: 0.55rem 1rem; gap: 0.65rem; }
   select { max-width: 130px; font-size: 0.74rem; }
+  .custom-mpa-panel { padding: 0 1rem 0.6rem; }
 }
 </style>

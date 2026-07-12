@@ -14,7 +14,12 @@
       v-model:active-genre="activeGenre"
       v-model:sub-genre="subGenre"
       v-model:decade="decade"
-      v-model:mpa-tier-idx="mpaTierIdx"
+      :mpa-tier-idx="mpaTierIdx"
+      :use-custom-mpa="useCustomMPA"
+      :custom-mpa-codes="customMPACodes"
+      @select-mpa-tier="selectMPATier"
+      @enable-custom-mpa="enableCustomMPA"
+      @toggle-custom-code="toggleCustomMPACode"
       @reset="resetFilters"
     />
 
@@ -46,6 +51,7 @@ import { useMovies, DEFAULT_MPA_TIER } from './composables/useMovies.js'
 const {
   loading, error,
   search, sortKey, activeGenre, subGenre, decade, mpaTierIdx,
+  useCustomMPA, customMPACodes, selectMPATier, enableCustomMPA, toggleCustomMPACode,
   genres, subGenres, decades,
   filteredMovies,
   loadCollection,
@@ -55,12 +61,13 @@ const selectedMovie = ref(null)
 const tutorialRef   = ref(null)
 
 function resetFilters() {
-  search.value      = ''
-  sortKey.value     = 'random'
-  activeGenre.value = ''
-  subGenre.value    = ''
-  decade.value      = ''
-  mpaTierIdx.value  = DEFAULT_MPA_TIER
+  search.value        = ''
+  sortKey.value       = 'random'
+  activeGenre.value   = ''
+  subGenre.value      = ''
+  decade.value        = ''
+  mpaTierIdx.value    = DEFAULT_MPA_TIER
+  useCustomMPA.value  = false
 }
 
 watch(selectedMovie, val => {

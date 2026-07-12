@@ -17,6 +17,21 @@ export const MPA_TIERS = [
 
 export const DEFAULT_MPA_TIER = 4
 
+// Full set of individual rating codes selectable in "Custom" mode.
+// Includes TV-MA and NC-17, which are intentionally excluded from every
+// preset tier above but should still be reachable when a user wants
+// full manual control.
+export const ALL_MPA_CODES = [
+  'TVY', 'TVY7', 'TVG', 'G', 'PG', 'TVPG',
+  'PG13', 'TV14', 'R', 'TVMA', 'NC17', 'NR', 'UR',
+]
+
+export const MPA_CODE_LABELS = {
+  TVY: 'TV-Y', TVY7: 'TV-Y7', TVG: 'TV-G', G: 'G', PG: 'PG', TVPG: 'TV-PG',
+  PG13: 'PG-13', TV14: 'TV-14', R: 'R', TVMA: 'TV-MA', NC17: 'NC-17',
+  NR: 'NR', UR: 'UR',
+}
+
 // ── Seasonal holiday genres ──────────────────────────────────────────────────
 // Holiday genres are hidden from browsing outside their date window.
 // They remain findable via search or by selecting the holiday genre directly.
@@ -227,6 +242,33 @@ export function useMovies() {
   const decade      = ref('')
   const mpaTierIdx  = ref(DEFAULT_MPA_TIER)
 
+  // Custom individual-rating selection — an alternative to the preset tiers.
+  // NR is NOT force-included here (unlike the tiers above); in custom mode
+  // it's just another checkbox, so unchecking it actually hides unrated titles.
+  const useCustomMPA   = ref(false)
+  const customMPACodes = ref([...MPA_TIERS[DEFAULT_MPA_TIER].codes])
+
+  function selectMPATier(idx) {
+    useCustomMPA.value = false
+    mpaTierIdx.value   = idx
+  }
+
+  function enableCustomMPA() {
+    if (!useCustomMPA.value) {
+      // Seed from whatever tier was active, so switching to Custom
+      // feels like a continuation rather than starting from scratch.
+      const currentCodes = MPA_TIERS[mpaTierIdx.value].codes
+      customMPACodes.value = currentCodes ? [...currentCodes] : [...ALL_MPA_CODES]
+    }
+    useCustomMPA.value = true
+  }
+
+  function toggleCustomMPACode(code) {
+    const set = new Set(customMPACodes.value)
+    set.has(code) ? set.delete(code) : set.add(code)
+    customMPACodes.value = [...set]
+  }
+
   async function loadCollection() {
     loading.value = true
     error.value   = null
@@ -287,7 +329,9 @@ export function useMovies() {
     return [...set].sort()
   })
 
-  const activeMPACodes = computed(() => MPA_TIERS[mpaTierIdx.value].codes)
+  const activeMPACodes = computed(() =>
+    useCustomMPA.value ? customMPACodes.value : MPA_TIERS[mpaTierIdx.value].codes
+  )
 
   // ── Smart search ────────────────────────────────────────────────────────────
   // Supports abbreviations and reverse lookups:
@@ -425,6 +469,8 @@ export function useMovies() {
   return {
     allMovies, loading, error,
     search, sortKey, activeGenre, subGenre, decade, mpaTierIdx,
+    useCustomMPA, customMPACodes,
+    selectMPATier, enableCustomMPA, toggleCustomMPACode,
     genres, subGenres, decades, browsableGenres,
     filteredMovies,
     loadCollection,

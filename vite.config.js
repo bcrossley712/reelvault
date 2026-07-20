@@ -7,7 +7,8 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['favicon.ico', 'movies.xlsx'],
       manifest: {
         name: 'ReelVault',

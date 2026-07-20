@@ -36,6 +36,7 @@
     />
 
     <TutorialModal ref="tutorialRef" />
+    <UpdateToast />
   </div>
 </template>
 
@@ -46,6 +47,7 @@ import FilterToolbar from './components/FilterToolbar.vue'
 import MovieGrid     from './components/MovieGrid.vue'
 import MovieModal    from './components/MovieModal.vue'
 import TutorialModal from './components/TutorialModal.vue'
+import UpdateToast   from './components/UpdateToast.vue'
 import { useMovies, DEFAULT_MPA_TIER } from './composables/useMovies.js'
 
 const {

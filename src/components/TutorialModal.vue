@@ -22,11 +22,12 @@
           <div class="tutorial-section">
             <h3 class="section-title">📖 How to Use ReelVault</h3>
             <ul class="feature-list">
+              <li>🔖 <strong>Watchlist</strong> — tap the bookmark on any title to save it; shows on startup if you have one</li>
               <li>🎲 <strong>Random</strong> — sort shuffles the whole collection for discovery</li>
               <li>🔍 <strong>Search</strong> — find by title, cast, or abbreviation (LOTR, TMNT, MCU…)</li>
               <li>📂 <strong>Category + Filter By</strong> — narrow your browse to a specific genre combination</li>
               <li>📅 <strong>Decade</strong> — browse movies by era</li>
-              <li>🎚️ <strong>Content</strong> — set a parental rating filter</li>
+              <li>🎚️ <strong>Content</strong> — set a parental rating filter, or pick individual ratings with Custom</li>
               <li>📺 <strong>TV Shows</strong> — grouped by season; tap a card and use the dropdown</li>
               <li>🎃 <strong>Holiday movies</strong> — appear automatically in their season</li>
             </ul>
@@ -73,16 +74,15 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
-const APP_VERSION = '1.0'
+const APP_VERSION = '1.1'
 const STORAGE_KEY = 'reelvault_tutorial_version'
 
 const whatsNew = [
-  '🎄 Holiday movies appear automatically in their season',
-  '📺 TV shows grouped by season with a dropdown selector',
-  '🔍 Search now understands abbreviations — try LOTR, TMNT, MCU',
-  '📂 Sub-category filter narrows within your selected genre',
-  '📅 Decade filter to browse by era',
-  '🎲 Random sort shuffles the whole collection',
+  '🔖 Watchlist — save titles to your own list; it becomes your default view',
+  '🎚️ Custom ratings — pick individual ratings instead of just a range',
+  '🔍 Fixed a search bug causing odd results on titles like "Mission Impossible"',
+  '📲 You\'ll now get a prompt when a new app update is ready to install',
+  '📴 Offline mode fixed — the app now reloads properly without a connection',
 ]
 
 const showModal   = ref(false)

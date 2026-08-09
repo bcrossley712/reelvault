@@ -487,8 +487,8 @@ export function useMovies(watchlist) {
 
     const sorted = [...list]
     switch (sortKey.value) {
-      case 'title-asc':  sorted.sort((a, b) => a.title.localeCompare(b.title)); break
-      case 'title-desc': sorted.sort((a, b) => b.title.localeCompare(a.title)); break
+      case 'title-asc':  sorted.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })); break
+      case 'title-desc': sorted.sort((a, b) => b.title.localeCompare(a.title, undefined, { numeric: true, sensitivity: 'base' })); break
       case 'year-desc':  sorted.sort((a, b) => (b.year ?? 0) - (a.year ?? 0)); break
       case 'year-asc':   sorted.sort((a, b) => (a.year ?? 0) - (b.year ?? 0)); break
       case 'random':     sorted.sort(() => Math.random() - 0.5); break

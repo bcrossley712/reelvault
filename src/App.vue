@@ -27,12 +27,16 @@
       :movies="filteredMovies"
       :loading="loading"
       :error="error"
+      :watchlist="watchlist"
       @select="selectedMovie = $event"
+      @toggle-watchlist="toggleWatchlist"
     />
 
     <MovieModal
       :movie="selectedMovie"
+      :watchlist="watchlist"
       @close="selectedMovie = null"
+      @toggle-watchlist="toggleWatchlist"
     />
 
     <TutorialModal ref="tutorialRef" />
@@ -49,6 +53,9 @@ import MovieModal    from './components/MovieModal.vue'
 import TutorialModal from './components/TutorialModal.vue'
 import UpdateToast   from './components/UpdateToast.vue'
 import { useMovies, DEFAULT_MPA_TIER } from './composables/useMovies.js'
+import { useWatchlist } from './composables/useWatchlist.js'
+
+const { watchlist, toggleWatchlist } = useWatchlist()
 
 const {
   loading, error,
@@ -57,7 +64,7 @@ const {
   genres, subGenres, decades,
   filteredMovies,
   loadCollection,
-} = useMovies()
+} = useMovies(watchlist)
 
 const selectedMovie = ref(null)
 const tutorialRef   = ref(null)

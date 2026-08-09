@@ -11,6 +11,7 @@
           @change="onGenreChange"
         >
           <option value="">All</option>
+          <option :value="watchlistCategory">🔖 My Watchlist</option>
           <option v-for="genre in genres" :key="genre" :value="genre">{{ genre }}</option>
         </select>
       </div>
@@ -57,12 +58,15 @@
         </select>
       </div>
 
-      <!-- Content rating -->
+      <!-- Content rating — not applicable while browsing the Watchlist,
+           since watchlisted titles always show regardless of rating -->
       <div class="filter-group">
         <label class="filter-label" for="mpa-select">Content</label>
         <select
           id="mpa-select"
           :value="mpaSelectValue"
+          :disabled="isWatchlistView"
+          :title="isWatchlistView ? 'Not applicable to My Watchlist' : ''"
           @change="onMpaSelectChange($event.target.value)"
         >
           <option v-for="(tier, idx) in mpaTiers" :key="idx" :value="idx">
@@ -80,7 +84,7 @@
     </div>
 
     <!-- Custom rating checkboxes — only shown when "Custom…" is selected -->
-    <div class="custom-mpa-panel" v-if="useCustomMpa">
+    <div class="custom-mpa-panel" v-if="useCustomMpa && !isWatchlistView">
       <label
         v-for="code in allMpaCodes"
         :key="code"
@@ -99,11 +103,12 @@
 
 <script setup>
 import { computed } from 'vue'
-import { MPA_TIERS, DEFAULT_MPA_TIER, ALL_MPA_CODES, MPA_CODE_LABELS } from '../composables/useMovies.js'
+import { MPA_TIERS, DEFAULT_MPA_TIER, ALL_MPA_CODES, MPA_CODE_LABELS, WATCHLIST_CATEGORY } from '../composables/useMovies.js'
 
 const mpaTiers   = MPA_TIERS
 const allMpaCodes = ALL_MPA_CODES
 const mpaLabels   = MPA_CODE_LABELS
+const watchlistCategory = WATCHLIST_CATEGORY
 
 const props = defineProps({
   genres:        { type: Array,   default: () => [] },
@@ -140,6 +145,8 @@ function onMpaSelectChange(value) {
     emit('select-mpa-tier', Number(value))
   }
 }
+
+const isWatchlistView = computed(() => props.activeGenre === WATCHLIST_CATEGORY)
 
 const hasActiveFilters = computed(() =>
   props.activeGenre  !== '' ||
@@ -196,6 +203,11 @@ select {
   max-width: 200px;
 }
 select:hover, select:focus { border-color: var(--accent); }
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+select:disabled:hover { border-color: var(--border); }
 
 .active-filters { margin-left: auto; }
 

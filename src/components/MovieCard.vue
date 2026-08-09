@@ -23,6 +23,19 @@
         <span>{{ movie.title }}</span>
       </div>
 
+      <!-- Watchlist toggle -->
+      <button
+        class="watchlist-btn"
+        :class="{ active: inWatchlist }"
+        :aria-label="inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'"
+        :aria-pressed="inWatchlist"
+        @click.stop="$emit('toggle-watchlist', movie)"
+      >
+        <svg viewBox="0 0 24 24" :fill="inWatchlist ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/>
+        </svg>
+      </button>
+
       <!-- TV badge shows season count; movies show MPA rating -->
       <div v-if="movie.isTV" class="badge-tv">
         📺 {{ movie.seasons.length }} {{ movie.groupType }}
@@ -49,14 +62,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { watchlistKey } from '../composables/useWatchlist.js'
 
-defineProps({
-  movie: { type: Object, required: true },
+const props = defineProps({
+  movie:      { type: Object, required: true },
+  watchlist:  { type: Array,  default: () => [] },
 })
-defineEmits(['select'])
+defineEmits(['select', 'toggle-watchlist'])
 
 const imgError = ref(false)
+
+const inWatchlist = computed(() => props.watchlist.includes(watchlistKey(props.movie)))
 
 function displayMPA(code) {
   if (!code) return ''
@@ -117,6 +134,33 @@ function displayMPA(code) {
 }
 .poster-fallback svg  { width: 36px; height: 36px; opacity: 0.35; flex-shrink: 0; }
 .poster-fallback span { font-size: 0.68rem; text-align: center; color: var(--muted); line-height: 1.3; }
+
+/* Watchlist toggle */
+.watchlist-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(10, 10, 15, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.watchlist-btn svg { width: 14px; height: 14px; }
+.watchlist-btn:hover { transform: scale(1.08); border-color: var(--accent); }
+.watchlist-btn.active {
+  background: rgba(232, 184, 75, 0.22);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* TV season count badge */
 .badge-tv {

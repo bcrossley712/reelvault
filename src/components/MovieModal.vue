@@ -15,6 +15,21 @@
           <!-- Close button -->
           <button class="modal-close" aria-label="Close" @click="$emit('close')">✕</button>
 
+          <!-- Watchlist toggle -->
+          <button
+            v-if="movie"
+            class="modal-watchlist-btn"
+            :class="{ active: inWatchlist }"
+            :aria-label="inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'"
+            :aria-pressed="inWatchlist"
+            @click="$emit('toggle-watchlist', movie)"
+          >
+            <svg viewBox="0 0 24 24" :fill="inWatchlist ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8">
+              <path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/>
+            </svg>
+            <span>{{ inWatchlist ? 'On Watchlist' : 'Add to Watchlist' }}</span>
+          </button>
+
           <!-- Poster strip -->
           <div class="modal-poster-wrap">
             <img
@@ -106,15 +121,21 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { watchlistKey } from '../composables/useWatchlist.js'
 
 const props = defineProps({
-  movie: { type: Object, default: null },
+  movie:     { type: Object, default: null },
+  watchlist: { type: Array,  default: () => [] },
 })
-defineEmits(['close'])
+defineEmits(['close', 'toggle-watchlist'])
 
 const imgError        = ref(false)
 const synExpanded     = ref(false)
 const activeSeasonIdx = ref(0)
+
+const inWatchlist = computed(() =>
+  props.movie ? props.watchlist.includes(watchlistKey(props.movie)) : false
+)
 
 const activeSeason = computed(() => {
   if (!props.movie) return {}
@@ -198,6 +219,37 @@ function displayMPA(code) {
   transition: background 0.15s;
 }
 .modal-close:hover { background: rgba(0, 0, 0, 0.9); }
+.modal-watchlist-btn {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 32px;
+  padding: 0 0.7rem 0 0.55rem;
+  border-radius: 100px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid var(--border-em);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.modal-watchlist-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.modal-watchlist-btn:hover { background: rgba(0, 0, 0, 0.85); border-color: var(--accent); }
+.modal-watchlist-btn.active {
+  background: rgba(232, 184, 75, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+@media (max-width: 600px) {
+  .modal-watchlist-btn span { display: none; }
+  .modal-watchlist-btn { width: 32px; padding: 0; justify-content: center; }
+}
 .modal-poster-wrap {
   width: 100%;
   height: 260px;

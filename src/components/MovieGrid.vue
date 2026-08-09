@@ -33,7 +33,9 @@
           v-for="movie in visibleMovies"
           :key="movie.id"
           :movie="movie"
+          :watchlist="watchlist"
           @select="$emit('select', $event)"
+          @toggle-watchlist="$emit('toggle-watchlist', $event)"
         />
       </div>
 
@@ -56,11 +58,12 @@ import MovieCard from './MovieCard.vue'
 const PAGE_SIZE = 40
 
 const props = defineProps({
-  movies:  { type: Array,   default: () => [] },
-  loading: { type: Boolean, default: false },
-  error:   { type: String,  default: null },
+  movies:    { type: Array,   default: () => [] },
+  loading:   { type: Boolean, default: false },
+  error:     { type: String,  default: null },
+  watchlist: { type: Array,   default: () => [] },
 })
-defineEmits(['select'])
+defineEmits(['select', 'toggle-watchlist'])
 
 const visibleCount = ref(PAGE_SIZE)
 const sentinel     = ref(null)

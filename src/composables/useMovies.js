@@ -17,6 +17,10 @@ export const MPA_TIERS = [
 
 export const DEFAULT_MPA_TIER = 4
 
+// Sentinel value for the "My Watchlist" pseudo-category in the Category
+// dropdown. Never collides with a real genre string from the spreadsheet.
+export const WATCHLIST_CATEGORY = '__watchlist__'
+
 // Full set of individual rating codes selectable in "Custom" mode.
 // Includes TV-MA and NC-17, which are intentionally excluded from every
 // preset tier above but should still be reachable when a user wants
@@ -230,10 +234,16 @@ function groupTVSeasons(movies) {
 }
 
 // ── Composable ────────────────────────────────────────────────────────────────
-export function useMovies() {
+// `watchlist` is an optional ref<string[]> of watchlist keys (see
+// useWatchlist.js) — passed in so the "My Watchlist" pseudo-category can
+// filter against it.
+export function useMovies(watchlist) {
   const allMovies  = ref([])
   const loading    = ref(false)
   const error      = ref(null)
+
+  const watchlistSet = computed(() => new Set(watchlist?.value ?? []))
+
 
   const search      = ref('')
   const sortKey     = ref('random')
@@ -282,9 +292,15 @@ export function useMovies() {
       const parsed = parseWorksheet(data)
       allMovies.value = groupTVSeasons(parsed)
 
-      // Pick a random genre that is currently in season
-      const g = browsableGenres.value
-      if (g.length > 0) activeGenre.value = randomFrom(g)
+      // Default view on load: the person's watchlist, if they have one —
+      // otherwise a random genre that's currently in season (unchanged
+      // prior behavior).
+      if (watchlistSet.value.size > 0) {
+        activeGenre.value = WATCHLIST_CATEGORY
+      } else {
+        const g = browsableGenres.value
+        if (g.length > 0) activeGenre.value = randomFrom(g)
+      }
     } catch (err) {
       error.value = err.message
     } finally {
@@ -379,10 +395,14 @@ export function useMovies() {
     // Direct alias lookup: "lotr" → "lord of the rings"
     if (ALIASES[lower]) terms.add(ALIASES[lower])
 
-    // Reverse alias lookup: "ninja" → also search via "tmnt" alias value
+    // Reverse alias lookup: "ninja" → also search via the full phrase
+    // ("teenage mutant ninja turtles"), not the short code. Adding the
+    // short code itself (e.g. "mi", "hp", "sw") caused it to substring-match
+    // almost every title, since 2-3 letter codes appear constantly in
+    // unrelated cast names, genres, etc.
     Object.entries(ALIASES)
       .filter(([abbr, full]) => full.includes(lower))
-      .forEach(([abbr]) => terms.add(abbr))
+      .forEach(([, full]) => terms.add(full))
 
     return [...terms]
   }
@@ -413,42 +433,55 @@ export function useMovies() {
       : allMovies.value
 
     if (searchResults.value === null) {
-      // ── Seasonal holiday filtering ──────────────────────────────────────────
-      // Out-of-season holiday genres are excluded UNLESS that holiday genre
-      // is the actively selected genre (user intentionally browsing it)
-      list = list.filter(m => {
-        return m.genres.every(g => {
-          if (!HOLIDAY_GENRES.has(g)) return true          // not a holiday genre
-          if (isHolidayInSeason(g)) return true            // in season — show it
-          if (g === activeGenre.value) return true         // directly selected — show it
-          if (g === subGenre.value) return true            // directly selected as sub — show it
-          return false                                     // out of season — hide
-        }) || m.genres.some(g =>
-          (g === activeGenre.value || g === subGenre.value) && HOLIDAY_GENRES.has(g)
-        )
-      })
+      if (activeGenre.value === WATCHLIST_CATEGORY) {
+        // Watchlist view: show everything saved, regardless of content
+        // rating or seasonal holiday windows. If someone deliberately
+        // saved a title, they should always be able to find it here —
+        // those filters exist for *browsing*, not for a personal list.
+        list = list.filter(m => watchlistSet.value.has(m.baseName.toUpperCase()))
 
-      // ── Genre filter ──────────────────────────────────────────────────────
-      if (activeGenre.value)
-        list = list.filter(m => m.genres.includes(activeGenre.value))
-
-      // ── Sub-genre filter (AND with active genre) ──────────────────────────
-      if (subGenre.value)
-        list = list.filter(m => m.genres.includes(subGenre.value))
-
-      // ── Decade filter ─────────────────────────────────────────────────────
-      if (decade.value) {
-        const d = parseInt(decade.value)
-        list = list.filter(m => m.year && Math.floor(m.year / 10) * 10 === d)
-      }
-
-      // ── MPA filter ────────────────────────────────────────────────────────
-      if (activeMPACodes.value !== null) {
-        const allowed = activeMPACodes.value
+        if (decade.value) {
+          const d = parseInt(decade.value)
+          list = list.filter(m => m.year && Math.floor(m.year / 10) * 10 === d)
+        }
+      } else {
+        // ── Seasonal holiday filtering ────────────────────────────────────────
+        // Out-of-season holiday genres are excluded UNLESS that holiday genre
+        // is the actively selected genre (user intentionally browsing it)
         list = list.filter(m => {
-          if (!m.mpa) return true
-          return allowed.includes(m.mpa)
+          return m.genres.every(g => {
+            if (!HOLIDAY_GENRES.has(g)) return true          // not a holiday genre
+            if (isHolidayInSeason(g)) return true            // in season — show it
+            if (g === activeGenre.value) return true         // directly selected — show it
+            if (g === subGenre.value) return true            // directly selected as sub — show it
+            return false                                     // out of season — hide
+          }) || m.genres.some(g =>
+            (g === activeGenre.value || g === subGenre.value) && HOLIDAY_GENRES.has(g)
+          )
         })
+
+        // ── Genre filter ────────────────────────────────────────────────────
+        if (activeGenre.value)
+          list = list.filter(m => m.genres.includes(activeGenre.value))
+
+        // ── Sub-genre filter (AND with active genre) ───────────────────────
+        if (subGenre.value)
+          list = list.filter(m => m.genres.includes(subGenre.value))
+
+        // ── Decade filter ───────────────────────────────────────────────────
+        if (decade.value) {
+          const d = parseInt(decade.value)
+          list = list.filter(m => m.year && Math.floor(m.year / 10) * 10 === d)
+        }
+
+        // ── MPA filter ──────────────────────────────────────────────────────
+        if (activeMPACodes.value !== null) {
+          const allowed = activeMPACodes.value
+          list = list.filter(m => {
+            if (!m.mpa) return true
+            return allowed.includes(m.mpa)
+          })
+        }
       }
     }
 

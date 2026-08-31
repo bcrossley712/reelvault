@@ -12,8 +12,32 @@
         >
           <option value="">All</option>
           <option :value="watchlistCategory">🔖 My Watchlist</option>
-          <option v-for="genre in genres" :key="genre" :value="genre">{{ genre }}</option>
+          <option v-for="genre in (pureGenreOnly ? pureGenres : genres)" :key="genre" :value="genre">
+            {{ genre }}
+          </option>
         </select>
+      </div>
+
+      <!-- Pure only — restricts the category to titles with no other tags.
+           Only relevant once a real genre is selected. -->
+      <div class="filter-group" v-if="activeGenre && !isWatchlistView">
+        <label class="filter-label">&nbsp;</label>
+        <div class="pure-switch" role="group" aria-label="Pure genre filter">
+          <button
+            type="button"
+            class="pure-switch-btn"
+            :class="{ active: !pureGenreOnly }"
+            @click="setPure(false)"
+          >All</button>
+          <button
+            type="button"
+            class="pure-switch-btn"
+            :class="{ active: pureGenreOnly }"
+            @click="setPure(true)"
+          >
+            Pure only<span v-if="pureGenreOnly && currentPureCount !== null"> ({{ currentPureCount }})</span>
+          </button>
+        </div>
       </div>
 
       <!-- Sub-category — only shows when a genre is selected and has sub-genres -->
@@ -121,18 +145,31 @@ const props = defineProps({
   mpaTierIdx:    { type: Number,  default: DEFAULT_MPA_TIER },
   useCustomMpa:  { type: Boolean, default: false },
   customMpaCodes:{ type: Array,   default: () => [] },
+  pureGenreOnly: { type: Boolean, default: false },
+  pureGenres:    { type: Array,   default: () => [] },
+  pureGenreCounts: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits([
   'update:sortKey', 'update:activeGenre', 'update:subGenre',
   'update:decade', 'select-mpa-tier', 'enable-custom-mpa',
-  'toggle-custom-code', 'reset'
+  'toggle-custom-code', 'toggle-pure-genre', 'reset'
 ])
 
 function onGenreChange(e) {
   emit('update:activeGenre', e.target.value)
   emit('update:subGenre', '')  // reset sub-genre when primary changes
 }
+
+function setPure(makePure) {
+  if (makePure !== props.pureGenreOnly) emit('toggle-pure-genre')
+}
+
+// Count shown next to "Pure only" for the currently selected category.
+const currentPureCount = computed(() => {
+  const c = props.pureGenreCounts?.[props.activeGenre]
+  return typeof c === 'number' ? c : null
+})
 
 // The <select> needs a single value; represent Custom mode with the
 // string 'custom' and fall back to the numeric tier index otherwise.
@@ -153,6 +190,7 @@ const hasActiveFilters = computed(() =>
   props.subGenre     !== '' ||
   props.decade       !== '' ||
   props.useCustomMpa ||
+  props.pureGenreOnly ||
   props.mpaTierIdx   !== DEFAULT_MPA_TIER ||
   props.sortKey      !== 'random'
 )
@@ -209,6 +247,35 @@ select:disabled {
 }
 select:disabled:hover { border-color: var(--border); }
 
+.pure-switch {
+  display: flex;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 2px;
+}
+
+.pure-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pure-switch-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.pure-switch-btn:not(.active):hover { color: var(--text); }
+
 .active-filters { margin-left: auto; }
 
 .custom-mpa-panel {
@@ -251,6 +318,7 @@ select:disabled:hover { border-color: var(--border); }
   .filter-bar { top: 54px; }
   .dropdowns { padding: 0.55rem 1rem; gap: 0.65rem; }
   select { max-width: 130px; font-size: 0.74rem; }
+  .pure-switch-btn { font-size: 0.7rem; padding: 0.26rem 0.6rem; }
   .custom-mpa-panel { padding: 0 1rem 0.6rem; }
 }
 </style>

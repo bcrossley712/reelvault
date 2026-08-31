@@ -1,6 +1,6 @@
 // composables/useMovies.js
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import * as XLSX from 'xlsx'
 
 // ── MPA rating hierarchy ──────────────────────────────────────────────────────
@@ -252,6 +252,36 @@ export function useMovies(watchlist) {
   const decade      = ref('')
   const mpaTierIdx  = ref(DEFAULT_MPA_TIER)
 
+  // "Pure only" — restrict the active category to titles tagged with
+  // ONLY that one genre (no co-tags). Sticky across category switches,
+  // like Sort and Content already are.
+  const pureGenreOnly = ref(false)
+
+  function togglePureGenre() {
+    pureGenreOnly.value = !pureGenreOnly.value
+    if (pureGenreOnly.value) {
+      // Sub-genre ANDs a second tag on; Pure requires there be no second
+      // tag at all. The two are mutually exclusive, so clear one.
+      subGenre.value = ''
+      // If the currently active genre has zero pure titles, it wouldn't
+      // even appear in the pruned dropdown — fall back to "All" rather
+      // than leaving an invisible/inconsistent selection in place.
+      if (activeGenre.value && !(pureGenreCounts.value[activeGenre.value] > 0)) {
+        activeGenre.value = ''
+      }
+    }
+  }
+
+  // Pure mode only makes sense while browsing a real genre. If the
+  // category is cleared back to "All" or switched to the Watchlist,
+  // silently carrying "pure only" forward would filter results with no
+  // visible control left on screen to explain why — so drop it here.
+  watch(activeGenre, (val) => {
+    if (pureGenreOnly.value && (val === '' || val === WATCHLIST_CATEGORY)) {
+      pureGenreOnly.value = false
+    }
+  })
+
   // Custom individual-rating selection — an alternative to the preset tiers.
   // NR is NOT force-included here (unlike the tiers above); in custom mode
   // it's just another checkbox, so unchecking it actually hides unrated titles.
@@ -319,9 +349,29 @@ export function useMovies(watchlist) {
     genres.value.filter(g => !HOLIDAY_GENRES.has(g) || isHolidayInSeason(g))
   )
 
+  // How many titles are tagged with ONLY that genre (no co-tags) — powers
+  // both the "(96)" count on the Pure toggle and the pruned dropdown below.
+  const pureGenreCounts = computed(() => {
+    const counts = {}
+    allMovies.value.forEach(m => {
+      if (m.genres.length === 1) {
+        const g = m.genres[0]
+        counts[g] = (counts[g] || 0) + 1
+      }
+    })
+    return counts
+  })
+
+  // Genres worth offering while "Pure only" is active — excludes any
+  // genre that has zero single-tag titles, since selecting it would
+  // otherwise silently show an empty grid.
+  const pureGenres = computed(() =>
+    genres.value.filter(g => (pureGenreCounts.value[g] || 0) > 0)
+  )
+
   // Sub-genres: genres that co-exist with the active genre selection
   const subGenres = computed(() => {
-    if (!activeGenre.value) return []
+    if (!activeGenre.value || pureGenreOnly.value) return []
     const set = new Set()
     allMovies.value.forEach(m => {
       if (m.genres.includes(activeGenre.value)) {
@@ -468,6 +518,11 @@ export function useMovies(watchlist) {
         if (subGenre.value)
           list = list.filter(m => m.genres.includes(subGenre.value))
 
+        // ── Pure genre filter ────────────────────────────────────────────────
+        // Restricts to titles with NO other genre tags at all.
+        if (pureGenreOnly.value)
+          list = list.filter(m => m.genres.length === 1)
+
         // ── Decade filter ───────────────────────────────────────────────────
         if (decade.value) {
           const d = parseInt(decade.value)
@@ -504,6 +559,7 @@ export function useMovies(watchlist) {
     search, sortKey, activeGenre, subGenre, decade, mpaTierIdx,
     useCustomMPA, customMPACodes,
     selectMPATier, enableCustomMPA, toggleCustomMPACode,
+    pureGenreOnly, togglePureGenre, pureGenres, pureGenreCounts,
     genres, subGenres, decades, browsableGenres,
     filteredMovies,
     loadCollection,

@@ -17,9 +17,13 @@
       :mpa-tier-idx="mpaTierIdx"
       :use-custom-mpa="useCustomMPA"
       :custom-mpa-codes="customMPACodes"
+      :pure-genre-only="pureGenreOnly"
+      :pure-genres="pureGenres"
+      :pure-genre-counts="pureGenreCounts"
       @select-mpa-tier="selectMPATier"
       @enable-custom-mpa="enableCustomMPA"
       @toggle-custom-code="toggleCustomMPACode"
+      @toggle-pure-genre="togglePureGenre"
       @reset="resetFilters"
     />
 
@@ -61,6 +65,7 @@ const {
   loading, error,
   search, sortKey, activeGenre, subGenre, decade, mpaTierIdx,
   useCustomMPA, customMPACodes, selectMPATier, enableCustomMPA, toggleCustomMPACode,
+  pureGenreOnly, togglePureGenre, pureGenres, pureGenreCounts,
   genres, subGenres, decades,
   filteredMovies,
   loadCollection,
@@ -77,6 +82,7 @@ function resetFilters() {
   decade.value        = ''
   mpaTierIdx.value    = DEFAULT_MPA_TIER
   useCustomMPA.value  = false
+  pureGenreOnly.value = false
 }
 
 watch(selectedMovie, val => {
